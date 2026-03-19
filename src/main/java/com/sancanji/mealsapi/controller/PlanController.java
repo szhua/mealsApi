@@ -56,6 +56,7 @@ public class PlanController {
             @PathVariable Long id,
             @RequestBody PlanDTO.UpdatePlanRequest request) {
         Long userId = getUserIdFromToken(authorization);
+        request.setUserId(userId);  // 设置用户ID用于冰箱库存检查
         return ApiResponse.success("更新成功", planService.updatePlan(userId, id, request));
     }
 

@@ -22,6 +22,8 @@ public class PlanDTO {
         private String date;
         private String meal;
         private Long dishId;
+        private Long userId;  // 用于冰箱库存扣减
+        private Boolean returnToFridge;  // 移除菜品时是否退回冰箱
     }
 
     @Data

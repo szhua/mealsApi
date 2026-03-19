@@ -85,6 +85,7 @@
                         <th>昵称</th>
                         <th>菜品数</th>
                         <th>规划数</th>
+                        <th>冰箱</th>
                         <th>打卡次数</th>
                         <th>注册时间</th>
                         <th>操作</th>
@@ -98,6 +99,7 @@
                         <td th:text="${user.nickname ?: '-'}"></td>
                         <td th:text="${statsMap[user.id].dishCount}"></td>
                         <td th:text="${statsMap[user.id].planCount}"></td>
+                        <td th:text="${statsMap[user.id].fridgeCount}"></td>
                         <td th:text="${statsMap[user.id].checkInCount}"></td>
                         <td th:text="${#temporals.format(user.createdAt, 'yyyy-MM-dd HH:mm')}"></td>
                         <td>
@@ -105,7 +107,7 @@
                         </td>
                     </tr>
                     <tr th:if="${#lists.isEmpty(users)}">
-                        <td colspan="9" style="text-align: center; color: #999;">暂无数据</td>
+                        <td colspan="10" style="text-align: center; color: #999;">暂无数据</td>
                     </tr>
                 </tbody>
             </table>

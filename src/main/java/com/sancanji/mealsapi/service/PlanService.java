@@ -5,6 +5,7 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.sancanji.mealsapi.dto.FridgeDTO;
 import com.sancanji.mealsapi.dto.PageResponse;
 import com.sancanji.mealsapi.dto.PlanDTO;
 import com.sancanji.mealsapi.entity.Dish;
@@ -31,6 +32,7 @@ public class PlanService {
     private final PlanMapper planMapper;
     private final PlanDayMapper planDayMapper;
     private final DishMapper dishMapper;
+    private final FridgeService fridgeService;
 
     public PageResponse<PlanDTO.PlanListItem> getPlans(Long userId, int page, int pageSize) {
         LambdaQueryWrapper<Plan> query = new LambdaQueryWrapper<>();
@@ -128,9 +130,46 @@ public class PlanService {
                 dayQuery.eq(PlanDay::getPlanId, id).eq(PlanDay::getDate, date);
                 PlanDay planDay = planDayMapper.selectOne(dayQuery);
                 if (planDay != null) {
-                    planDay.setBreakfast(JSONUtil.toJsonStr(dayPlan.getBreakfast() != null ? dayPlan.getBreakfast() : new ArrayList<>()));
-                    planDay.setLunch(JSONUtil.toJsonStr(dayPlan.getLunch() != null ? dayPlan.getLunch() : new ArrayList<>()));
-                    planDay.setDinner(JSONUtil.toJsonStr(dayPlan.getDinner() != null ? dayPlan.getDinner() : new ArrayList<>()));
+                    // 获取原有菜品列表
+                    List<Long> oldBreakfast = JSONUtil.toList(planDay.getBreakfast(), Long.class);
+                    List<Long> oldLunch = JSONUtil.toList(planDay.getLunch(), Long.class);
+                    List<Long> oldDinner = JSONUtil.toList(planDay.getDinner(), Long.class);
+
+                    List<Long> newBreakfast = dayPlan.getBreakfast() != null ? dayPlan.getBreakfast() : new ArrayList<>();
+                    List<Long> newLunch = dayPlan.getLunch() != null ? dayPlan.getLunch() : new ArrayList<>();
+                    List<Long> newDinner = dayPlan.getDinner() != null ? dayPlan.getDinner() : new ArrayList<>();
+
+                    // 计算每个菜品的数量变化（支持重复添加/移除）
+                    Map<Long, Long> toConsume = new HashMap<>();  // 需要扣减的
+                    Map<Long, Long> toReturn = new HashMap<>();   // 需要退回的
+                    countDishDiff(oldBreakfast, newBreakfast, toConsume, toReturn);
+                    countDishDiff(oldLunch, newLunch, toConsume, toReturn);
+                    countDishDiff(oldDinner, newDinner, toConsume, toReturn);
+
+                    // 从冰箱扣减
+                    for (Map.Entry<Long, Long> e : toConsume.entrySet()) {
+                        Long dishId = e.getKey();
+                        int count = e.getValue().intValue();
+                        for (int i = 0; i < count; i++) {
+                            if (!fridgeService.consumeDish(userId, dishId, 1)) {
+                                throw new RuntimeException("冰箱中菜品库存不足: " + dishId);
+                            }
+                        }
+                    }
+
+                    // 退回到冰箱
+                    for (Map.Entry<Long, Long> e : toReturn.entrySet()) {
+                        Long dishId = e.getKey();
+                        int count = e.getValue().intValue();
+                        FridgeDTO.AddRequest returnRequest = new FridgeDTO.AddRequest();
+                        returnRequest.setDishId(dishId);
+                        returnRequest.setQuantity(count);
+                        fridgeService.addToFridge(userId, returnRequest);
+                    }
+
+                    planDay.setBreakfast(JSONUtil.toJsonStr(newBreakfast));
+                    planDay.setLunch(JSONUtil.toJsonStr(newLunch));
+                    planDay.setDinner(JSONUtil.toJsonStr(newDinner));
                     planDayMapper.updateById(planDay);
                 }
             }
@@ -148,6 +187,7 @@ public class PlanService {
         LocalDate date = LocalDate.parse(request.getDate());
         String meal = request.getMeal();
         Long dishId = request.getDishId();
+        Long userId = request.getUserId(); // 需要用户ID来检查冰箱
 
         LambdaQueryWrapper<PlanDay> dayQuery = new LambdaQueryWrapper<>();
         dayQuery.eq(PlanDay::getPlanId, planId).eq(PlanDay::getDate, date);
@@ -165,11 +205,25 @@ public class PlanService {
 
         List<Long> dishIds = JSONUtil.toList(json, Long.class);
         if ("addDish".equals(request.getAction())) {
-            if (!dishIds.contains(dishId)) {
-                dishIds.add(dishId);
+            // 从冰箱扣减库存
+            if (userId != null) {
+                boolean success = fridgeService.consumeDish(userId, dishId, 1);
+                if (!success) {
+                    throw new RuntimeException("冰箱中该菜品库存不足");
+                }
             }
+            dishIds.add(dishId);
         } else if ("removeDish".equals(request.getAction())) {
-            dishIds.remove(dishId);
+            if (dishIds.contains(dishId)) {
+                dishIds.remove(dishId);  // 只移除一个
+                // 移除时可以退回冰箱（可选功能）
+                if (userId != null && Boolean.TRUE.equals(request.getReturnToFridge())) {
+                    FridgeDTO.AddRequest returnRequest = new FridgeDTO.AddRequest();
+                    returnRequest.setDishId(dishId);
+                    returnRequest.setQuantity(1);
+                    fridgeService.addToFridge(userId, returnRequest);
+                }
+            }
         }
 
         String updatedJson = JSONUtil.toJsonStr(dishIds);
@@ -302,5 +356,40 @@ public class PlanService {
         }
         response.setDays(days);
         return response;
+    }
+
+    /**
+     * 计算菜品数量差异（新列表比旧列表多出/少多少个）
+     * @param toConsume 需要扣减的菜品及数量
+     * @param toReturn 需要退回的菜品及数量
+     */
+    private void countDishDiff(List<Long> oldList, List<Long> newList, Map<Long, Long> toConsume, Map<Long, Long> toReturn) {
+        Map<Long, Long> oldCount = new HashMap<>();
+        Map<Long, Long> newCount = new HashMap<>();
+
+        for (Long id : oldList) {
+            oldCount.merge(id, 1L, Long::sum);
+        }
+        for (Long id : newList) {
+            newCount.merge(id, 1L, Long::sum);
+        }
+
+        // 所有涉及的菜品ID
+        Set<Long> allIds = new HashSet<>();
+        allIds.addAll(oldCount.keySet());
+        allIds.addAll(newCount.keySet());
+
+        for (Long dishId : allIds) {
+            long oldTotal = oldCount.getOrDefault(dishId, 0L);
+            long newTotal = newCount.getOrDefault(dishId, 0L);
+            long diff = newTotal - oldTotal;
+            if (diff > 0) {
+                // 新增多，需要扣减
+                toConsume.merge(dishId, diff, Long::sum);
+            } else if (diff < 0) {
+                // 减少了，需要退回
+                toReturn.merge(dishId, -diff, Long::sum);
+            }
+        }
     }
 }

@@ -28,6 +28,7 @@ public class AdminController {
     private final PlanMapper planMapper;
     private final PlanDayMapper planDayMapper;
     private final CheckInMapper checkInMapper;
+    private final FridgeMapper fridgeMapper;
 
     @GetMapping
     public String index() {
@@ -58,6 +59,10 @@ public class AdminController {
             LambdaQueryWrapper<CheckIn> checkInQuery = new LambdaQueryWrapper<>();
             checkInQuery.eq(CheckIn::getUserId, user.getId());
             stats.setCheckInCount(checkInMapper.selectCount(checkInQuery));
+
+            LambdaQueryWrapper<Fridge> fridgeQuery = new LambdaQueryWrapper<>();
+            fridgeQuery.eq(Fridge::getUserId, user.getId());
+            stats.setFridgeCount(fridgeMapper.selectCount(fridgeQuery));
 
             statsMap.put(user.getId(), stats);
         }
@@ -93,10 +98,40 @@ public class AdminController {
         checkInQuery.eq(CheckIn::getUserId, id).orderByDesc(CheckIn::getCheckDate).last("LIMIT 30");
         List<CheckIn> checkIns = checkInMapper.selectList(checkInQuery);
 
+        // 冰箱库存
+        LambdaQueryWrapper<Fridge> fridgeQuery = new LambdaQueryWrapper<>();
+        fridgeQuery.eq(Fridge::getUserId, id).orderByDesc(Fridge::getUpdatedAt);
+        List<Fridge> fridgeItems = fridgeMapper.selectList(fridgeQuery);
+
+        // 获取菜品详情
+        Map<Long, Dish> fridgeDishMap = new HashMap<>();
+        if (!fridgeItems.isEmpty()) {
+            List<Long> dishIds = fridgeItems.stream().map(Fridge::getDishId).collect(Collectors.toList());
+            List<Dish> fridgeDishes = dishMapper.selectBatchIds(dishIds);
+            fridgeDishMap = fridgeDishes.stream().collect(Collectors.toMap(Dish::getId, d -> d));
+        }
+
+        List<FridgeItemView> fridgeView = new ArrayList<>();
+        for (Fridge item : fridgeItems) {
+            FridgeItemView view = new FridgeItemView();
+            view.setId(item.getId());
+            view.setDishId(item.getDishId());
+            view.setQuantity(item.getQuantity());
+            view.setUnit(item.getUnit());
+            view.setExpiryDate(item.getExpiryDate());
+            Dish dish = fridgeDishMap.get(item.getDishId());
+            if (dish != null) {
+                view.setDishName(dish.getName());
+                view.setDishImage(dish.getImage());
+            }
+            fridgeView.add(view);
+        }
+
         model.addAttribute("user", user);
         model.addAttribute("dishes", dishes);
         model.addAttribute("plans", plans);
         model.addAttribute("checkIns", checkIns);
+        model.addAttribute("fridgeItems", fridgeView);
         return "admin/user-detail";
     }
 
@@ -236,6 +271,7 @@ public class AdminController {
         private long dishCount;
         private long planCount;
         private long checkInCount;
+        private long fridgeCount;
 
         public long getDishCount() { return dishCount; }
         public void setDishCount(long dishCount) { this.dishCount = dishCount; }
@@ -243,5 +279,32 @@ public class AdminController {
         public void setPlanCount(long planCount) { this.planCount = planCount; }
         public long getCheckInCount() { return checkInCount; }
         public void setCheckInCount(long checkInCount) { this.checkInCount = checkInCount; }
+        public long getFridgeCount() { return fridgeCount; }
+        public void setFridgeCount(long fridgeCount) { this.fridgeCount = fridgeCount; }
+    }
+
+    public static class FridgeItemView {
+        private Long id;
+        private Long dishId;
+        private String dishName;
+        private String dishImage;
+        private Integer quantity;
+        private String unit;
+        private LocalDate expiryDate;
+
+        public Long getId() { return id; }
+        public void setId(Long id) { this.id = id; }
+        public Long getDishId() { return dishId; }
+        public void setDishId(Long dishId) { this.dishId = dishId; }
+        public String getDishName() { return dishName; }
+        public void setDishName(String dishName) { this.dishName = dishName; }
+        public String getDishImage() { return dishImage; }
+        public void setDishImage(String dishImage) { this.dishImage = dishImage; }
+        public Integer getQuantity() { return quantity; }
+        public void setQuantity(Integer quantity) { this.quantity = quantity; }
+        public String getUnit() { return unit; }
+        public void setUnit(String unit) { this.unit = unit; }
+        public LocalDate getExpiryDate() { return expiryDate; }
+        public void setExpiryDate(LocalDate expiryDate) { this.expiryDate = expiryDate; }
     }
 }

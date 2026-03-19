@@ -41,7 +41,7 @@ public class BackupController {
     private String uploadPath;
 
     private static final List<String> TABLES = Arrays.asList(
-            "t_user", "t_category", "t_dish", "t_plan", "t_plan_day", "t_streak", "t_check_in"
+            "t_user", "t_category", "t_dish", "t_fridge", "t_plan", "t_plan_day", "t_streak", "t_check_in"
     );
 
     @GetMapping("/download")

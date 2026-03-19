@@ -104,6 +104,38 @@
             </div>
 
             <div class="card">
+                <h2>冰箱库存 (<span th:text="${#lists.size(fridgeItems)}"></span>)</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>图片</th>
+                            <th>菜品名称</th>
+                            <th>数量</th>
+                            <th>单位</th>
+                            <th>过期日期</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="item : ${fridgeItems}">
+                            <td>
+                                <img th:if="${item.dishImage}" th:src="${item.dishImage}" class="dish-img">
+                                <div th:unless="${item.dishImage}" class="dish-img-placeholder">无图</div>
+                            </td>
+                            <td th:text="${item.dishName}"></td>
+                            <td th:text="${item.quantity}"></td>
+                            <td th:text="${item.unit}"></td>
+                            <td th:text="${item.expiryDate ?: '-'}"></td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(fridgeItems)}">
+                            <td colspan="5" style="text-align: center; color: #999;">冰箱空空如也</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
                 <h2>饮食规划 (<span th:text="${#lists.size(plans)}"></span>)</h2>
                 <table>
                     <thead>
@@ -129,15 +161,15 @@
                     </tbody>
                 </table>
             </div>
-        </div>
 
-        <div class="card">
-            <h2>打卡记录 (最近30天)</h2>
-            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                <span th:each="checkIn : ${checkIns}"
-                      style="padding: 4px 10px; background: #e6f7ff; border-radius: 4px; font-size: 13px;"
-                      th:text="${checkIn.checkDate}"></span>
-                <span th:if="${#lists.isEmpty(checkIns)}" style="color: #999;">暂无打卡记录</span>
+            <div class="card">
+                <h2>打卡记录 (最近30天)</h2>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                    <span th:each="checkIn : ${checkIns}"
+                          style="padding: 4px 10px; background: #e6f7ff; border-radius: 4px; font-size: 13px;"
+                          th:text="${checkIn.checkDate}"></span>
+                    <span th:if="${#lists.isEmpty(checkIns)}" style="color: #999;">暂无打卡记录</span>
+                </div>
             </div>
         </div>
     </div>

@@ -76,6 +76,20 @@ CREATE TABLE IF NOT EXISTS t_check_in (
     UNIQUE(user_id, check_date)
 );
 
+-- 冰箱表（存储用户的食材库存）
+CREATE TABLE IF NOT EXISTS t_fridge (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    dish_id BIGINT NOT NULL,
+    quantity INT DEFAULT 1,
+    unit VARCHAR(16) DEFAULT '份',
+    expiry_date DATE,
+    version INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, dish_id)
+);
+
 -- 初始化分类数据 (使用 INSERT ... ON CONFLICT 避免重复插入)
 INSERT INTO t_category (code, name, icon, sort) VALUES
 ('staple', '主食', 'rice', 1),
@@ -93,3 +107,5 @@ CREATE INDEX IF NOT EXISTS idx_plan_user ON t_plan(user_id);
 CREATE INDEX IF NOT EXISTS idx_plan_date ON t_plan(start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_plan_day_plan ON t_plan_day(plan_id);
 CREATE INDEX IF NOT EXISTS idx_check_in_user ON t_check_in(user_id);
+CREATE INDEX IF NOT EXISTS idx_fridge_user ON t_fridge(user_id);
+CREATE INDEX IF NOT EXISTS idx_fridge_dish ON t_fridge(dish_id);
