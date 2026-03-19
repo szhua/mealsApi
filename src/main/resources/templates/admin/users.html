@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户管理 - 三餐记食后台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header { background: #1890ff; color: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; }
+        .header h1 { font-size: 24px; }
+        .nav { margin-top: 10px; }
+        .nav a { color: white; margin-right: 20px; text-decoration: none; }
+        .nav a:hover { text-decoration: underline; }
+        .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        .stat-item { background: white; padding: 20px; border-radius: 8px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .stat-item .number { font-size: 32px; font-weight: bold; color: #1890ff; }
+        .stat-item .label { color: #666; margin-top: 5px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #fafafa; font-weight: 600; }
+        tr:hover { background: #f9f9f9; }
+        .btn { display: inline-block; padding: 6px 12px; background: #1890ff; color: white; border-radius: 4px; text-decoration: none; font-size: 14px; cursor: pointer; border: none; }
+        .btn:hover { background: #40a9ff; }
+        .btn-success { background: #52c41a; }
+        .btn-success:hover { background: #73d13d; }
+        .btn-warning { background: #faad14; }
+        .btn-warning:hover { background: #ffc53d; }
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 20px; }
+        .pagination a, .pagination span { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; text-decoration: none; color: #333; }
+        .pagination a:hover { background: #f5f5f5; }
+        .pagination .active { background: #1890ff; color: white; border-color: #1890ff; }
+        .backup-section { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        .backup-section form { display: inline; }
+        .alert { padding: 12px 16px; border-radius: 4px; margin-bottom: 20px; }
+        .alert-success { background: #f6ffed; border: 1px solid #b7eb8f; color: #52c41a; }
+        .alert-error { background: #fff2f0; border: 1px solid #ffccc7; color: #ff4d4f; }
+        .file-input { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>三餐记食 - 后台管理系统</h1>
+            <div class="nav">
+                <a href="/admin/users">用户管理</a>
+            </div>
+        </div>
+
+        <!-- 提示消息 -->
+        <div class="alert alert-success" th:if="${success}">
+            <span th:text="${success}"></span>
+        </div>
+        <div class="alert alert-error" th:if="${error}">
+            <span th:text="${error}"></span>
+        </div>
+
+        <!-- 数据备份管理 -->
+        <div class="card">
+            <h2 style="margin-bottom: 15px;">数据备份</h2>
+            <div class="backup-section">
+                <a href="/admin/backup/download" class="btn btn-success">下载数据备份</a>
+                <form action="/admin/backup/upload" method="post" enctype="multipart/form-data" id="restoreForm">
+                    <input type="file" name="file" id="backupFile" class="file-input" accept=".zip">
+                    <button type="button" class="btn btn-warning" onclick="document.getElementById('backupFile').click()">选择备份文件</button>
+                    <span id="fileName" style="margin-left: 10px; color: #666;"></span>
+                    <button type="submit" class="btn" id="restoreBtn" style="display: none; margin-left: 10px;">确认恢复</button>
+                </form>
+            </div>
+            <p style="color: #999; font-size: 12px; margin-top: 10px;">
+                备份包含数据库数据和上传的图片文件。恢复数据会覆盖当前数据，请谨慎操作。
+            </p>
+        </div>
+
+        <div class="card">
+            <h2 style="margin-bottom: 20px;">用户列表</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>OpenID</th>
+                        <th>手机号</th>
+                        <th>昵称</th>
+                        <th>菜品数</th>
+                        <th>规划数</th>
+                        <th>打卡次数</th>
+                        <th>注册时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="user : ${users}">
+                        <td th:text="${user.id}"></td>
+                        <td th:text="${#strings.abbreviate(user.openId, 16)}"></td>
+                        <td th:text="${user.phone ?: '-'}"></td>
+                        <td th:text="${user.nickname ?: '-'}"></td>
+                        <td th:text="${statsMap[user.id].dishCount}"></td>
+                        <td th:text="${statsMap[user.id].planCount}"></td>
+                        <td th:text="${statsMap[user.id].checkInCount}"></td>
+                        <td th:text="${#temporals.format(user.createdAt, 'yyyy-MM-dd HH:mm')}"></td>
+                        <td>
+                            <a th:href="@{/admin/users/{id}(id=${user.id})}" class="btn">查看详情</a>
+                        </td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(users)}">
+                        <td colspan="9" style="text-align: center; color: #999;">暂无数据</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="pagination" th:if="${totalPages > 1}">
+                <a th:if="${page > 1}" th:href="@{/admin/users(page=${page - 1})}">上一页</a>
+                <span th:each="i : ${#numbers.sequence(1, totalPages)}">
+                    <a th:if="${i != page}" th:href="@{/admin/users(page=${i})}" th:text="${i}"></a>
+                    <span th:if="${i == page}" class="active" th:text="${i}"></span>
+                </span>
+                <a th:if="${page < totalPages}" th:href="@{/admin/users(page=${page + 1})}">下一页</a>
+            </div>
+        </div>
+    </div>
+</body>
+<script>
+    document.getElementById('backupFile').addEventListener('change', function(e) {
+        var fileName = e.target.files[0] ? e.target.files[0].name : '';
+        document.getElementById('fileName').textContent = fileName;
+        document.getElementById('restoreBtn').style.display = fileName ? 'inline-block' : 'none';
+    });
+
+    document.getElementById('restoreForm').addEventListener('submit', function(e) {
+        if (!document.getElementById('backupFile').files[0]) {
+            e.preventDefault();
+            alert('请先选择备份文件');
+        } else {
+            if (!confirm('恢复数据将覆盖当前所有数据，确定要继续吗？')) {
+                e.preventDefault();
+            }
+        }
+    });
+</script>
+</html>

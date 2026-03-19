@@ -1,0 +1,5 @@
+
+# 文件上传配置
+upload:
+  path: /Users/szhua/temp
+  max-size: 205MB

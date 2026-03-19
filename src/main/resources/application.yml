@@ -1,0 +1,51 @@
+server:
+  port: 8080
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+spring:
+  application:
+    name: mealsapi
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://10.181.22.140:5432/meals?currentSchema=public&stringtype=unspecified
+    username: postgres
+    password: YkwwKRidZjXCxTWT
+    hikari:
+      connection-timeout: 30000
+      #minimum-idle: 5
+      maximum-pool-size: 20
+      auto-commit: true
+      idle-timeout: 600000
+      pool-name: DateSourceHikariCP
+      max-lifetime: 1800000
+      connection-test-query: SELECT 1
+
+
+
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    default-property-inclusion: non_null
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# 微信小程序配置
+wechat:
+  appid: wx45830580cbdec770
+  secret: 1811da5f988174aec67e2caac6d08a0f
+
+# JWT配置
+jwt:
+  secret: zCn/7SlPWIBX/9u8KASWSQBNiVzfhKtSV0LTLXEta3/PGKq1G0FLIeQrBVbuxEzuJH1Y/AAFMvLO6peYZDVGyg==
+
+# 文件上传配置
+upload:
+  path: /fencer/uploads/smartapp/upload/sancanjishi
+  max-size: 205MB

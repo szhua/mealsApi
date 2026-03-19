@@ -1,0 +1,33 @@
+# Compiled
+target/
+*.class
+*.jar
+*.war
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temp files
+*.tmp
+*.swp
+
+# H2 database files
+*.mv.db
+*.trace.db
+
+# Claude
+.claude/
+
+# Data files
+data.sql
+migrate_data.sql
+data/
