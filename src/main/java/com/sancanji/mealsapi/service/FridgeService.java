@@ -8,6 +8,7 @@ import com.sancanji.mealsapi.entity.Fridge;
 import com.sancanji.mealsapi.mapper.DishMapper;
 import com.sancanji.mealsapi.mapper.FridgeMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,9 @@ public class FridgeService {
 
     private final FridgeMapper fridgeMapper;
     private final DishMapper dishMapper;
+
+    @Value("${fridge.auto-delete-zero:true}")
+    private boolean autoDeleteZero;
 
     /**
      * 获取用户冰箱列表
@@ -143,9 +147,16 @@ public class FridgeService {
                 return false;
             }
 
-            fridge.setQuantity(fridge.getQuantity() - quantity);
+            int newQuantity = fridge.getQuantity() - quantity;
             fridge.setUpdatedAt(LocalDateTime.now());
 
+            // 根据配置决定：数量为0时删除记录还是保留
+            if (newQuantity == 0 && autoDeleteZero) {
+                int rows = fridgeMapper.deleteById(fridge.getId());
+                return rows > 0;
+            }
+
+            fridge.setQuantity(newQuantity);
             // 使用乐观锁更新，updateById 会自动检查 version
             int rows = fridgeMapper.updateById(fridge);
             if (rows > 0) {

@@ -49,3 +49,7 @@ jwt:
 upload:
   path: /fencer/uploads/smartapp/upload/sancanjishi
   max-size: 205MB
+
+# 冰箱配置
+fridge:
+  auto-delete-zero: true  # 当数量为0时自动删除记录
